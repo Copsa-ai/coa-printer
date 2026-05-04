@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>COA Printer — COPSA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+
+:root {
+  --bg: #f5f2ee;
+  --surface: #ffffff;
+  --surface2: #f0ece6;
+  --border: #ddd8d0;
+  --ink: #1a1714;
+  --ink2: #6b6560;
+  --accent: #c8401a;
+  --accent2: #a33214;
+  --green: #1a7a3c;
+  --green-bg: #e8f5ed;
+  --red: #c8401a;
+  --red-bg: #fdf0ec;
+  --warn: #b07a00;
+  --warn-bg: #fdf8e8;
+  --mono: 'Space Mono', monospace;
+  --sans: 'DM Sans', sans-serif;
+  --radius: 6px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  min-height: 100vh;
+}
+
+header {
+  background: var(--ink);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo { display: flex; align-items: center; gap: 12px; }
+.logo-mark {
+  width: 28px; height: 28px;
+  background: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 700;
+  color: #fff; letter-spacing: -0.5px;
+}
+.logo h1 { font-family: var(--mono); font-size: 13px; font-weight: 700; color: #fff; letter-spacing: 1px; text-transform: uppercase; }
+.header-sub { font-family: var(--mono); font-size: 11px; color: #555; }
+
+main {
+  max-width: 780px; margin: 0 auto;
+  padding: 32px 24px;
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.card-header {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none;
+  background: var(--surface2);
+}
+.card-header:hover { background: #ebe6df; }
+.card-label { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: 1.2px; }
+.card-body { padding: 20px; display: none; flex-direction: column; gap: 16px; }
+.card-body.open { display: flex; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--ink2); text-transform: uppercase; letter-spacing: 0.8px; }
+.field input {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 9px 12px;
+  color: var(--ink); font-family: var(--mono); font-size: 12px;
+  outline: none; transition: border-color 0.15s; width: 100%;
+}
+.field input:focus { border-color: var(--accent); }
+.field input::placeholder { color: #bbb; }
+.field-note { font-size: 12px; color: var(--ink2); line-height: 1.6; }
+
+.file-input-row { display: flex; gap: 10px; align-items: center; }
+.file-name { font-family: var(--mono); font-size: 11px; color: var(--ink2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: var(--radius); border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 500;
+  transition: all 0.15s; white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent2); }
+.btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+.btn-secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+.btn-green { background: var(--green); color: #fff; }
+.btn-green:hover { background: #155e2e; }
+.btn-green:disabled { background: #ccc; cursor: not-allowed; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-xs { padding: 4px 10px; font-size: 11px; font-family: var(--mono); }
+
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; font-family: var(--mono); }
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-warn { background: var(--warn-bg); color: var(--warn); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+
+.chevron { transition: transform 0.2s; display: inline-block; }
+.chevron.open { transform: rotate(90deg); }
+
+.drop-zone {
+  border: 2px dashed var(--border); border-radius: var(--radius);
+  padding: 48px 28px; text-align: center; cursor: pointer;
+  transition: all 0.2s; background: var(--surface);
+}
+.drop-zone:hover, .drop-zone.drag-over { border-color: var(--accent); background: #fdf5f2; }
+.drop-icon { font-size: 40px; margin-bottom: 14px; display: block; }
+.drop-zone h3 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+.drop-zone p { font-size: 13px; color: var(--ink2); margin-bottom: 20px; }
+#fileInput { display: none; }
+
+.results-header {
+  padding: 14px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2);
+}
+.results-title { font-family: var(--mono); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; }
+
+.lot-row {
+  padding: 12px 20px; display: flex; align-items: center; gap: 12px;
+  border-bottom: 1px solid var(--border); transition: background 0.1s;
+}
+.lot-row:last-child { border-bottom: none; }
+.lot-row:hover { background: var(--surface2); }
+.lot-num { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--ink); min-width: 120px; }
+.lot-product { font-size: 12px; color: var(--ink2); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lot-status { font-size: 11px; padding: 3px 9px; border-radius: 20px; font-family: var(--mono); white-space: nowrap; font-weight: 700; }
+.s-found { background: var(--green-bg); color: var(--green); }
+.s-notfound { background: var(--red-bg); color: var(--red); }
+.s-searching { background: var(--warn-bg); color: var(--warn); }
+.s-pending { background: var(--surface2); color: var(--ink2); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.4} }
+.s-searching { animation: blink 1s ease infinite; }
+.lot-btn { flex-shrink: 0; }
+
+.actions-bar {
+  padding: 14px 20px; border-top: 2px solid var(--border);
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  background: var(--surface2);
+}
+.spacer { flex: 1; }
+
+.summary-row {
+  padding: 10px 20px; border-top: 1px solid var(--border);
+  display: flex; gap: 20px;
+  font-family: var(--mono); font-size: 11px; color: var(--ink2);
+}
+.summary-row strong { color: var(--ink); }
+
+.log {
+  background: var(--ink); border-top: 2px solid var(--border);
+  padding: 10px 16px; font-family: var(--mono); font-size: 11px; color: #888;
+  max-height: 100px; overflow-y: auto; line-height: 1.9;
+}
+.log .ok { color: #4caf7d; }
+.log .er { color: #e07060; }
+.log .info { color: #d4a843; }
+
+.steps {
+  display: flex; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
+}
+.step-item { flex: 1; padding: 14px 16px; border-right: 1px solid var(--border); }
+.step-item:last-child { border-right: none; }
+.step-num { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--border); line-height: 1; margin-bottom: 5px; }
+.step-item.active .step-num { color: var(--accent); }
+.step-item.done .step-num { color: var(--green); }
+.step-title { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 2px; }
+.step-desc { font-size: 11px; color: var(--ink2); line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">COA</div>
+    <h1>COA Printer</h1>
+  </div>
+  <div class="header-sub">COPSA · Impresión de certificados</div>
+</header>
+
+<main>
+
+  <div class="steps">
+    <div class="step-item active" id="step1">
+      <div class="step-num">01</div>
+      <div class="step-title">Credenciales</div>
+      <div class="step-desc">Cargar archivo JSON</div>
+    </div>
+    <div class="step-item" id="step2">
+      <div class="step-num">02</div>
+      <div class="step-title">Cargar Reparto</div>
+      <div class="step-desc">Excel de reparto diario</div>
+    </div>
+    <div class="step-item" id="step3">
+      <div class="step-num">03</div>
+      <div class="step-title">Buscar COAs</div>
+      <div class="step-desc">Localizar en Drive</div>
+    </div>
+    <div class="step-item" id="step4">
+      <div class="step-num">04</div>
+      <div class="step-title">Imprimir</div>
+      <div class="step-desc">Abrir e imprimir</div>
+    </div>
+  </div>
+
+  <!-- CONFIG / LOGIN -->
+  <div class="card" id="loginCard">
+    <div class="card-body open" id="configBody" style="align-items:center; padding: 32px;">
+      <div style="font-size:15px;font-weight:600;margin-bottom:8px;">Iniciá sesión con tu cuenta de COPSA</div>
+      <div style="font-size:13px;color:var(--ink2);margin-bottom:24px;">Solo necesitás hacerlo una vez.</div>
+      <div id="g_id_onload"
+        data-client_id="1052191568276-ieapfqteggvi5vl4qaf44t27g4c32l9k.apps.googleusercontent.com"
+        data-callback="handleGoogleLogin"
+        data-auto_select="true">
+      </div>
+      <div class="g_id_signin"
+        data-type="standard"
+        data-size="large"
+        data-theme="outline"
+        data-text="signin_with"
+        data-shape="rectangular"
+        data-logo_alignment="left">
+      </div>
+      <div id="loginStatus" style="margin-top:16px;font-size:12px;color:var(--ink2);"></div>
+    </div>
+  </div>
+
+  <!-- DROP ZONE -->
+  <div id="dropContainer" style="display:none;">
+    <div class="drop-zone" id="dropZone"
+      ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)"
+      onclick="document.getElementById('fileInput').click()">
+      <span class="drop-icon">📋</span>
+      <h3>Arrastrá el Excel de Reparto Diario</h3>
+      <p>REPARTO_DIARIO_DANSA-XX.xlsx · Lee automáticamente todos los lotes</p>
+      <button class="btn btn-secondary" onclick="event.stopPropagation(); document.getElementById('fileInput').click()">Seleccionar archivo</button>
+      <input type="file" id="fileInput" accept=".xlsx,.xls" onchange="handleFileSelect(event)">
+    </div>
+  </div>
+
+  <!-- RESULTADOS -->
+  <div class="card" id="resultsCard" style="display:none;">
+    <div class="results-header">
+      <span class="results-title">Lotes detectados</span>
+      <div id="badgesContainer" style="display:flex;gap:8px;align-items:center;"></div>
+    </div>
+    <div id="lotList"></div>
+    <div class="summary-row" id="summaryRow" style="display:none;"></div>
+    <div class="actions-bar" id="actionsBar" style="display:none;">
+      <button class="btn btn-secondary btn-sm" onclick="resetApp()">↩ Cargar otro Excel</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" id="mergePdfBtn" onclick="mergePdfs('download')" disabled>⬇ Descargar PDF unificado</button>
+      <button class="btn btn-green" id="printPdfBtn" onclick="mergePdfs('print')" disabled>🖨 Imprimir todos</button>
+    </div>
+    <div class="log" id="log"></div>
+  </div>
+
+</main>
+
+<script>
+const CLIENT_ID = '1052191568276-ieapfqteggvi5vl4qaf44t27g4c32l9k.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
+let accessToken = null;
+let lots = [];
+
+function handleGoogleLogin(response) {
+  // Intercambiar id_token por access_token usando token implícito
+  initOAuthToken();
+}
+
+function initOAuthToken() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: CLIENT_ID,
+    scope: SCOPES,
+    callback: (tokenResponse) => {
+      if (tokenResponse.access_token) {
+        accessToken = tokenResponse.access_token;
+        document.getElementById('loginCard').style.display = 'none';
+        document.getElementById('dropContainer').style.display = 'block';
+        setStep(2);
+        logMsg('Sesión iniciada correctamente.', 'ok');
+      }
+    },
+  });
+  client.requestToken();
+}
+
+window.onload = () => {
+  // Intentar login automático silencioso
+  if (typeof google !== 'undefined' && google.accounts) {
+    initOAuthToken();
+  }
+};
+
+function setStep(n) {
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById('step'+i);
+    el.classList.remove('active','done');
+    if (i < n) el.classList.add('done');
+    if (i === n) el.classList.add('active');
+  }
+}
+
+function toggleConfig() {
+  const body = document.getElementById('configBody');
+  const chev = document.getElementById('configChevron');
+  const isOpen = body.classList.contains('open');
+  body.classList.toggle('open', !isOpen);
+  chev.classList.toggle('open', !isOpen);
+}
+
+function loadJsonFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  document.getElementById('jsonFileName').textContent = file.name;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      credentials = JSON.parse(e.target.result);
+      logMsg('Credenciales cargadas: ' + credentials.client_email, 'ok');
+    } catch(err) {
+      logMsg('Error al leer el JSON: ' + err.message, 'er');
+      alert('El archivo no es un JSON válido.');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function saveConfig() {
+  if (!credentials) { alert('Primero seleccioná el archivo JSON de credenciales.'); return; }
+  document.getElementById('configStatus').textContent = '✓ Configurado';
+  document.getElementById('configStatus').className = 'badge badge-green';
+  document.getElementById('configBody').classList.remove('open');
+  document.getElementById('configChevron').classList.remove('open');
+  setStep(2);
+  logMsg('Configuración guardada. Podés cargar el Excel ahora.', 'ok');
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function handleDragLeave() { document.getElementById('dropZone').classList.remove('drag-over'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropZone').classList.remove('drag-over');
+  if (e.dataTransfer.files[0]) processExcel(e.dataTransfer.files[0]);
+}
+function handleFileSelect(e) { if (e.target.files[0]) processExcel(e.target.files[0]); }
+
+function processExcel(file) {
+  if (!accessToken) {
+    alert('Primero iniciá sesión con Google.');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+
+      // Buscar la fila que tiene el encabezado NroLote (puede estar en fila 1, 5, etc.)
+      const raw = XLSX.utils.sheet_to_json(ws, { header: 1 });
+      let headerRow = -1;
+      for (let i = 0; i < raw.length; i++) {
+        if (raw[i].some(cell => String(cell||'').toLowerCase().includes('lote'))) {
+          headerRow = i;
+          break;
+        }
+      }
+      if (headerRow === -1) { alert('No se encontró la columna NroLote en el archivo.'); return; }
+
+      const data = XLSX.utils.sheet_to_json(ws, { range: headerRow });
+      if (!data.length) { alert('El archivo no tiene datos.'); return; }
+
+      const keys = Object.keys(data[0]);
+      const loteKey = keys.find(k => k === 'NroLote' || k.toLowerCase().includes('lote'));
+      // Detectar columna de razón social: es el "Nombre" que viene DESPUÉS de "Titular"
+      const titularIdx = keys.findIndex(k => k.toLowerCase() === 'titular');
+      const razonSocialKey = titularIdx >= 0
+        ? keys.slice(titularIdx + 1).find(k => k.toLowerCase().includes('nombre'))
+        : keys.find(k => k.toLowerCase().includes('nombre'));
+      const productoKey = keys.find(k => k.toLowerCase().includes('nombre'));
+
+      const loteMap = {};
+      data.forEach(row => {
+        const lote = String(row[loteKey] || '').trim();
+        if (!lote || lote.toLowerCase() === 'nrolote') return;
+        if (!loteMap[lote]) loteMap[lote] = { lote, productos: new Set(), clientes: new Set(), status: 'pending', fileId: null, fileName: null };
+        if (productoKey && row[productoKey]) loteMap[lote].productos.add(row[productoKey]);
+        if (razonSocialKey && row[razonSocialKey]) loteMap[lote].clientes.add(row[razonSocialKey]);
+      });
+
+      lots = Object.values(loteMap);
+      logMsg(`Excel procesado: ${lots.length} lote(s) único(s).`, 'ok');
+      renderLots();
+      setStep(3);
+      searchAllLots();
+    } catch(err) {
+      logMsg('Error: ' + err.message, 'er');
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function renderLots() {
+  document.getElementById('resultsCard').style.display = 'block';
+  document.getElementById('dropContainer').style.display = 'none';
+  document.getElementById('lotList').innerHTML = lots.map((l, i) => `
+    <div class="lot-row" id="row-${i}">
+      <div class="lot-num">${l.lote}</div>
+      <div class="lot-product">${[...l.productos].join(', ') || '—'}${l.clientes && l.clientes.size > 0 ? ' · ' + [...l.clientes].join(', ') : ''}</div>
+      <span class="lot-status s-${l.status}" id="status-${i}">${statusLabel(l.status)}</span>
+      <div class="lot-btn" id="btn-${i}"></div>
+    </div>
+  `).join('');
+}
+
+function updateRow(i) {
+  const l = lots[i];
+  const el = document.getElementById('status-'+i);
+  if (el) { el.className = 'lot-status s-'+l.status; el.textContent = statusLabel(l.status); }
+  const btn = document.getElementById('btn-'+i);
+  if (btn) btn.innerHTML = l.fileId ? `<button class="btn btn-secondary btn-xs" onclick="openCoa('${l.fileId}')">🖨 Abrir</button>` : '';
+}
+
+function statusLabel(s) {
+  return { pending: 'Pendiente', searching: 'Buscando...', found: '✓ Encontrado', notfound: '✗ No encontrado' }[s] || s;
+}
+
+function updateSummary() {
+  const found = lots.filter(l => l.status === 'found').length;
+  const notfound = lots.filter(l => l.status === 'notfound').length;
+  const pending = lots.filter(l => l.status === 'pending' || l.status === 'searching').length;
+  document.getElementById('badgesContainer').innerHTML =
+    (found ? `<span class="badge badge-green">${found} encontrado(s)</span>` : '') +
+    (notfound ? `<span class="badge badge-red">${notfound} no encontrado(s)</span>` : '') +
+    (pending ? `<span class="badge badge-warn">${pending} buscando...</span>` : '');
+  if (pending === 0) {
+    document.getElementById('actionsBar').style.display = 'flex';
+    document.getElementById('mergePdfBtn').disabled = found === 0;
+    document.getElementById('printPdfBtn').disabled = found === 0;
+    document.getElementById('summaryRow').style.display = 'flex';
+    document.getElementById('summaryRow').innerHTML =
+      `<span>Total: <strong>${lots.length}</strong></span>` +
+      `<span>Encontrados: <strong style="color:var(--green)">${found}</strong></span>` +
+      `<span>No encontrados: <strong style="color:var(--red)">${notfound}</strong></span>`;
+    if (found > 0) setStep(4);
+  }
+}
+
+async function getAccessToken() {
+  if (accessToken) return accessToken;
+  throw new Error('No hay sesión activa. Recargá la página e iniciá sesión.');
+}
+
+async function searchLotInDrive(lote) {
+  const token = await getAccessToken();
+  const folderId = document.getElementById('folderId').value.trim();
+  // Buscar en carpeta COAS y subcarpetas
+  const q = encodeURIComponent(`name contains '${lote}' and trashed = false`);
+  const url = `https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)&pageSize=10&includeItemsFromAllDrives=true&supportsAllDrives=true`;
+  const resp = await fetch(url, { headers: { Authorization: 'Bearer '+token } });
+  const data = await resp.json();
+  if (data.files && data.files.length > 0) return data.files[0];
+  return null;
+}
+
+async function searchAllLots() {
+  document.getElementById('actionsBar').style.display = 'none';
+  for (let i = 0; i < lots.length; i++) {
+    lots[i].status = 'searching';
+    updateRow(i); updateSummary();
+    try {
+      const file = await searchLotInDrive(lots[i].lote);
+      if (file) {
+        lots[i].status = 'found'; lots[i].fileId = file.id; lots[i].fileName = file.name;
+        logMsg('✓ Lote '+lots[i].lote+' → '+file.name, 'ok');
+      } else {
+        lots[i].status = 'notfound';
+        logMsg('✗ Lote '+lots[i].lote+' → No encontrado', 'er');
+      }
+    } catch(err) {
+      lots[i].status = 'notfound';
+      logMsg('Error lote '+lots[i].lote+': '+err.message, 'er');
+    }
+    updateRow(i); updateSummary();
+  }
+}
+
+function openCoa(fileId) {
+  window.open('https://drive.google.com/file/d/'+fileId+'/view', '_blank');
+  logMsg('Abriendo COA en nueva pestaña...', 'info');
+}
+
+async function mergePdfs(action) {
+  const found = lots.filter(l => l.status === 'found');
+  if (found.length === 0) return;
+
+  const mergePdfBtn = document.getElementById('mergePdfBtn');
+  const printPdfBtn = document.getElementById('printPdfBtn');
+  mergePdfBtn.disabled = true;
+  printPdfBtn.disabled = true;
+  mergePdfBtn.textContent = '⏳ Generando PDF...';
+  printPdfBtn.textContent = '⏳ Generando PDF...';
+
+  logMsg(`Descargando y uniendo ${found.length} COA(s)...`, 'info');
+
+  try {
+    const token = await getAccessToken();
+    const { PDFDocument } = PDFLib;
+    const mergedPdf = await PDFDocument.create();
+
+    for (const lot of found) {
+      try {
+        logMsg(`Descargando: ${lot.fileName}`, 'info');
+        const resp = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${lot.fileId}?alt=media`,
+          { headers: { Authorization: 'Bearer ' + token } }
+        );
+        if (!resp.ok) { logMsg(`Error descargando ${lot.lote}`, 'er'); continue; }
+        const arrayBuffer = await resp.arrayBuffer();
+
+        const ext = (lot.fileName || '').split('.').pop().toLowerCase();
+
+        if (ext === 'pdf') {
+          // Detectar si es formato COPSA (no es de proveedor externo conocido)
+          const fname = (lot.fileName || '').toUpperCase();
+          const externos = ['BASF','INDORAMA','OXITENO','DOW','SHELL','BAYER','LANXESS','CLARIANT','HUNTSMAN','EVONIK','DUPONT'];
+          const esCopsa = !externos.some(p => fname.includes(p));
+          const clientes = (esCopsa && lot.clientes && lot.clientes.size > 0) ? [...lot.clientes] : [null];
+
+          for (const cliente of clientes) {
+            const pdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+            if (cliente) {
+              try {
+                const page = pdf.getPage(0);
+                const { width, height } = page.getSize();
+                const font = await pdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
+                const texto = 'Cliente: ' + cliente;
+                const textWidth = font.widthOfTextAtSize(texto, 10);
+                page.drawRectangle({
+                  x: width - textWidth - 36,
+                  y: height - 28,
+                  width: textWidth + 12,
+                  height: 16,
+                  color: PDFLib.rgb(1, 0.95, 0.8),
+                });
+                page.drawText(texto, {
+                  x: width - textWidth - 30,
+                  y: height - 24,
+                  size: 10,
+                  font,
+                  color: PDFLib.rgb(0.6, 0.1, 0),
+                });
+                logMsg(`✓ ${lot.lote} → ${cliente}`, 'ok');
+              } catch(e) {
+                logMsg(`Advertencia al estampar cliente: ${e.message}`, 'info');
+              }
+            }
+            const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+            pages.forEach(p => mergedPdf.addPage(p));
+          }
+        } else if (ext === 'jpg' || ext === 'jpeg') {
+          const img = await mergedPdf.embedJpg(arrayBuffer);
+          const page = mergedPdf.addPage([img.width, img.height]);
+          page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+        } else if (ext === 'png') {
+          const img = await mergedPdf.embedPng(arrayBuffer);
+          const page = mergedPdf.addPage([img.width, img.height]);
+          page.drawImage(img, { x: 0, y: 0, width: img.width, height: img.height });
+        } else {
+          logMsg(`Formato no soportado para ${lot.fileName}, se omite.`, 'er');
+          continue;
+        }
+
+        logMsg(`✓ ${lot.lote} agregado`, 'ok');
+      } catch(err) {
+        logMsg(`Error en ${lot.lote}: ${err.message}`, 'er');
+      }
+    }
+
+    const pdfBytes = await mergedPdf.save();
+    const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+
+    if (action === 'download') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `COAS_${new Date().toLocaleDateString('es-AR').replace(/\//g,'-')}.pdf`;
+      a.click();
+      logMsg('✓ PDF descargado correctamente.', 'ok');
+    } else {
+      const win = window.open(url, '_blank');
+      if (win) {
+        win.onload = () => { win.focus(); win.print(); };
+      }
+      logMsg('✓ PDF abierto para imprimir.', 'ok');
+    }
+
+  } catch(err) {
+    logMsg('Error general: ' + err.message, 'er');
+    alert('Hubo un error al generar el PDF: ' + err.message);
+  } finally {
+    mergePdfBtn.disabled = false;
+    printPdfBtn.disabled = false;
+    mergePdfBtn.textContent = '⬇ Descargar PDF unificado';
+    printPdfBtn.textContent = '🖨 Imprimir todos';
+  }
+}
+
+function resetApp() {
+  lots = []; accessToken = null;
+  document.getElementById('resultsCard').style.display = 'none';
+  document.getElementById('dropContainer').style.display = 'block';
+  document.getElementById('fileInput').value = '';
+  setStep(accessToken ? 2 : 1);
+}
+
+function logMsg(msg, type) {
+  const log = document.getElementById('log');
+  const t = new Date().toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  log.innerHTML += `<span class="${type}">[${t}] ${msg}</span>\n`;
+  log.scrollTop = log.scrollHeight;
+}
+</script>
+</body>
+</html>
