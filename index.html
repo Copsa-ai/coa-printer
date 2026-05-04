@@ -249,6 +249,9 @@ main {
         data-shape="rectangular"
         data-logo_alignment="left">
       </div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="requestDriveToken()">Acceder con Google Drive</button>
+      </div>
       <div id="loginStatus" style="margin-top:16px;font-size:12px;color:var(--ink2);"></div>
     </div>
   </div>
@@ -290,34 +293,39 @@ const CLIENT_ID = '1052191568276-ieapfqteggvi5vl4qaf44t27g4c32l9k.apps.googleuse
 const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
 let accessToken = null;
 let lots = [];
+let tokenClient = null;
 
 function handleGoogleLogin(response) {
-  // Intercambiar id_token por access_token usando token implícito
-  initOAuthToken();
+  // Este callback es del Sign-In button — inicia el flujo de token
+  requestDriveToken();
 }
 
-function initOAuthToken() {
-  const client = google.accounts.oauth2.initTokenClient({
-    client_id: CLIENT_ID,
-    scope: SCOPES,
-    callback: (tokenResponse) => {
-      if (tokenResponse.access_token) {
-        accessToken = tokenResponse.access_token;
-        document.getElementById('loginCard').style.display = 'none';
-        document.getElementById('dropContainer').style.display = 'block';
-        setStep(2);
-        logMsg('Sesión iniciada correctamente.', 'ok');
-      }
-    },
-  });
-  client.requestToken();
+function requestDriveToken() {
+  if (!tokenClient) {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPES,
+      callback: (tokenResponse) => {
+        if (tokenResponse.access_token) {
+          accessToken = tokenResponse.access_token;
+          document.getElementById('loginCard').style.display = 'none';
+          document.getElementById('dropContainer').style.display = 'block';
+          setStep(2);
+          logMsg('Sesión iniciada correctamente.', 'ok');
+        }
+      },
+    });
+  }
+  tokenClient.requestToken();
 }
 
 window.onload = () => {
-  // Intentar login automático silencioso
-  if (typeof google !== 'undefined' && google.accounts) {
-    initOAuthToken();
-  }
+  // Si ya hay sesión de Google activa, pedir token automáticamente
+  setTimeout(() => {
+    if (typeof google !== 'undefined' && google.accounts && google.accounts.oauth2) {
+      requestDriveToken();
+    }
+  }, 1500);
 };
 
 function setStep(n) {
